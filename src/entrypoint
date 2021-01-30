@@ -1,0 +1,5 @@
+#!/bin/sh
+export FLASK_ENV=development
+export FLASH_DEBUG=1
+export FLASK_APP=$1
+exec flask run --host=0.0.0.0 --port=80

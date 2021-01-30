@@ -1,0 +1,98 @@
+version: '3'
+
+networks:
+  internal:
+
+services:
+ 
+  proxy:
+
+    image: traefik:v2.3
+
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+
+    ports:
+      - "80:80"
+      - "8080:8080"
+
+    volumes:
+      # Make sure to use system time
+      - /etc/localtime:/etc/localtime:ro
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    networks:
+      - internal
+
+  base:
+
+    image: green-house
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+      network: host
+    
+    logging:
+      driver: journald
+
+    devices:
+      - "/dev/gpiomem:/dev/gpiomem"
+
+    privileged: true
+    
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+
+  air-exchanger:
+
+    extends: base
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.air_exchanger.entrypoints=web"
+      - "traefik.http.routers.air_exchanger.rule=PathPrefix(`/air-exchanger`)"
+
+    command: "src/air-exchanger.py"
+
+    networks:
+       internal:
+         aliases:
+           - air-exchanger
+
+  sensors:
+
+    extends: base
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sensors.entrypoints=web"
+      - "traefik.http.routers.sensors.rule=PathPrefix(`/sensors`)"
+
+    command: "src/sensors.py"
+
+    networks:
+       internal:
+         aliases:
+           - sensors
+
+  single-page-app:
+
+    extends: base
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.spa.entrypoints=web"
+      - "traefik.http.routers.spa.rule=PathPrefix(`/`)"
+
+    command: "src/spa.py"
+
+    networks:
+       internal:
+         aliases:
+           - spa

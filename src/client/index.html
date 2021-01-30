@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+  </head>
+
+  <body>
+
+    <dl>
+      <dt>Température</dt>
+      <dd id="temperature"></dd>
+      <dt>Humidité</dt>
+      <dd id="humidity"></dd>
+    </dl>
+
+    <h2>Échangeur d'air</h2>
+    <button id="air-exchanger">Allumer/Éteindre</button>
+    <h3>Horaire</h3>
+    <iframe name="dummy" style="display:none;"></iframe>
+    <form id="form" name="air-exchanger-form" action="/air-exchanger" method="post" target="dummy">
+
+      <label for="fbegin">Début:</label>
+      <input id="fbegin" type="time" name="fbegin">
+
+      <label for="fend">Fin:</label>
+      <input id="fend" type="time" name="fend">
+
+      <input type="submit" value="Envoyez">
+    </form>
+
+    <button id="cancel">Annulez</button>
+
+    <script type="text/javascript">
+
+      var temperature   = document.getElementById("temperature");
+      var humidity      = document.getElementById("humidity");
+      var air_exchanger = document.getElementById("air-exchanger");
+      var form          = document.getElementById("form");
+      var cancel        = document.getElementById("cancel");
+      var fbegin        = document.getElementById("fbegin");
+      var fend          = document.getElementById("fend");
+
+      function update_sensors() {
+
+	  let xhttp = new XMLHttpRequest();
+
+	  xhttp.onreadystatechange = function() {
+
+	      if (this.readyState == 4 && this.status == 200) {
+
+		  let data = JSON.parse(xhttp.responseText);
+
+		  temperature.innerHTML = data.temperature.toFixed(2) + "℃";
+		  humidity.innerHTML    = data.humidity.toFixed(2) + "%";
+
+		  setTimeout(update_sensors, 1000);
+	      }
+	  }
+
+	  xhttp.open("GET", "/sensors");
+	  xhttp.send();
+      }
+
+      function set_button_state(state) {
+
+	  if (state == "on")  {
+	      air_exchanger.style.background = "green";
+	  } else {
+	      air_exchanger.style.background = "red";
+	  }
+      }
+
+      function set_scheduler_state(start_time, end_time) {
+	  if (start_time === null || end_time === null) {
+	      form.reset();
+	      fbegin.value = "";
+	      fend.value   = "";
+	  } else {
+	      fbegin.value = start_time;
+	      fend.value   = end_time;
+	  }
+      }
+
+      function update_air_exchanger(method) {
+
+	  let xhttp = new XMLHttpRequest();
+
+	  xhttp.onreadystatechange = function() {
+
+	      if (this.readyState == 4 && this.status == 200) {
+
+		  let data = JSON.parse(xhttp.responseText);
+
+		  set_button_state(data.status);
+		  set_scheduler_state(data.start_time, data.end_time);
+	      }
+	  }
+
+	  xhttp.open(method, "/air-exchanger")
+	  xhttp.send();
+      }
+
+      air_exchanger.onclick = function() {
+	  update_air_exchanger("PUT");
+      };
+
+      cancel.onclick = function() {
+
+	  let xhttp = new XMLHttpRequest();
+
+	  xhttp.onreadystatechange = function() {
+
+	      if (this.readyState == 4 && this.status == 200) {
+
+		  let data = JSON.parse(xhttp.responseText);
+
+		  set_button_state(data.status);
+		  set_scheduler_state(data.start_time, data.end_time);
+	      }
+	  }
+
+	  xhttp.open("DELETE", "/air-exchanger")
+	  xhttp.send();
+      }
+
+      update_air_exchanger("GET");
+      update_sensors();
+
+    </script>
+
+  </body>
+
+</html>
